@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --linkedin-blue: #0a66c2;
+  --internshala-blue: #008bdc;
+  --bg-gray: #f3f4f6;
+}
+
+body {
+  background-color: var(--bg-gray);
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Responsive helper rules - do not change theme colors, only layout/scale */
+img, picture, video, svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Make containers fluid on small screens and adjust typography a bit */
+@media (max-width: 1024px) {
+  .max-w-7xl, .max-w-4xl, .max-w-3xl, .max-w-2xl, .max-w-sm {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (max-width: 767px) {
+  /* Nav: allow vertical flow and reduce fixed height on very small screens */
+  nav.fixed {
+    position: relative;
+    height: auto !important;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  nav.fixed .max-w-7xl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  /* Flex wrappers should wrap on mobile so buttons/links stack */
+  .flex { flex-wrap: wrap; }
+
+  /* Force grid to single-column on small screens to avoid overflow */
+  .grid { grid-template-columns: 1fr !important; }
+
+  /* Ensure hidden md:flex utilities behave correctly on small screens */
+  .hidden.md\:flex, .md\:flex { display: none !important; }
+  .md\:hidden { display: block !important; }
+
+  /* Make large paddings smaller on tiny screens (preserve visual look) */
+  .px-10 { padding-left: 1rem !important; padding-right: 1rem !important; }
+
+  /* Slightly scale large headings to prevent overflow */
+  .text-6xl { font-size: 2.25rem; }
+  .text-4xl { font-size: 1.75rem; }
+
+  /* Reduce large fixed min-heights used in some cards/pages so mobile doesn't get excessive whitespace */
+  .min-h-\[400px\], .min-h-\[520px\], .min-h-\[320px\], .min-h-screen, .min-h-\[calc\(100vh-64px\)\] {
+    min-height: auto !important;
+  }
+}
+
+/* Utility to prevent horizontal scroll from accidental wide elements */
+@media (max-width: 480px) {
+  body { overflow-x: hidden; }
+}
