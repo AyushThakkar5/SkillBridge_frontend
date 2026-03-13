@@ -13,6 +13,7 @@ import {
 } from "react-icons/fi";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import Icon from "../../assets/Icon.png";
 import Navbar from "../../components/Navbar";
 
@@ -28,8 +29,14 @@ const StatCard = ({ title, value, icon }) => (
 
 const EmployerDashboard = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [errors, setErrors] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
 
   const navigate = useNavigate();
   const { employer_id, companyName, linkedin, full_name, company_description } =
@@ -64,6 +71,109 @@ const EmployerDashboard = () => {
       setStats(res.data.stats);
     } catch (err) {
       console.log(err);
+    }
+  };
+
+  const passwordRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+  const validateField = (name, value) => {
+    let message = "";
+
+    if (name === "currentPassword") {
+      if (!value) message = "Current password is required";
+    }
+
+    if (name === "newPassword") {
+      if (!value) {
+        message = "New password is required";
+      } else if (value === currentPassword) {
+        message = "New password cannot be the same as current password";
+      } else if (!passwordRegex.test(value)) {
+        message =
+          "Password must be 8+ chars with uppercase, lowercase, number & symbol";
+      }
+    }
+
+    if (name === "confirmPassword") {
+      if (!value) {
+        message = "Please confirm your password";
+      } else if (value !== newPassword) {
+        message = "Passwords do not match";
+      }
+    }
+
+    setErrors((prev) => ({
+      ...prev,
+      [name]: message,
+    }));
+  };
+
+  const handleUpdatePassword = async () => {
+    let newErrors = {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    };
+
+    if (!currentPassword) {
+      newErrors.currentPassword = "Current password is required";
+    }
+
+    if (!newPassword) {
+      newErrors.newPassword = "New password is required";
+    } else if (newPassword === currentPassword) {
+      newErrors.newPassword =
+        "New password cannot be the same as current password";
+    } else if (!passwordRegex.test(newPassword)) {
+      newErrors.newPassword =
+        "Password must be 8+ chars with uppercase, lowercase, number & symbol";
+    }
+
+    if (!confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your password";
+    } else if (confirmPassword !== newPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
+    }
+
+    setErrors(newErrors);
+
+    if (
+      newErrors.currentPassword ||
+      newErrors.newPassword ||
+      newErrors.confirmPassword
+    ) {
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        `https://skillbridge-backend-3-vqsm.onrender.com/api/forgot-password/employer/change-password`,
+        {
+          oldPassword: currentPassword,
+          newPassword: newPassword,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            user: JSON.stringify(loginPayload),
+          },
+        },
+      );
+      toast.success("Password updated successfully");
+
+      setShowPasswordModal(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+
+      setErrors({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (err) {
+      toast.error("Failed to update password");
     }
   };
 
@@ -207,12 +317,18 @@ const EmployerDashboard = () => {
           >
             <div className="w-full flex items-center justify-center mb-3 bg-blue-50 rounded-xl py-3">
               <div className="h-16 w-16 rounded-full bg-white flex items-center justify-center shadow-md border border-slate-100">
-                <img src={Icon} alt="Manage Jobs" className="h-10 w-10 object-contain" />
+                <img
+                  src={Icon}
+                  alt="Manage Jobs"
+                  className="h-10 w-10 object-contain"
+                />
               </div>
             </div>
             <div className="flex items-center justify-between w-full">
               <div className="text-left">
-                <span className="font-bold text-slate-800 text-base leading-tight">Manage</span>
+                <span className="font-bold text-slate-800 text-base leading-tight">
+                  Manage
+                </span>
                 <div className="text-slate-500 text-sm">Jobs & Openings</div>
               </div>
               <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md hover:bg-blue-700 transition-colors shrink-0">
@@ -234,14 +350,49 @@ const EmployerDashboard = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value);
+                    validateField("currentPassword", e.target.value);
+                  }}
+                  className={`w-full p-3.5 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent outline-none transition-all
+${errors.currentPassword ? "border-red-500" : "border-slate-200"}
+`}
+                />
+                {errors.currentPassword && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.currentPassword}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
                   New Password
                 </label>
                 <input
                   type="password"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full p-3.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent outline-none transition-all"
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    validateField("newPassword", e.target.value);
+                    if (confirmPassword) {
+                      validateField("confirmPassword", confirmPassword);
+                    }
+                  }}
+                  className={`w-full p-3.5 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent outline-none transition-all
+${errors.newPassword ? "border-red-500" : "border-slate-200"}
+`}
                 />
+                {errors.newPassword && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.newPassword}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -251,21 +402,44 @@ const EmployerDashboard = () => {
                 <input
                   type="password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full p-3.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent outline-none transition-all"
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    validateField("confirmPassword", e.target.value);
+                  }}
+                  className={`w-full p-3.5 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent outline-none transition-all
+${errors.confirmPassword ? "border-red-500" : "border-slate-200"}
+`}
                 />
+                {errors.confirmPassword && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.confirmPassword}
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-8">
               <button
-                onClick={() => setShowPasswordModal(false)}
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setConfirmPassword("");
+                  setErrors({
+                    currentPassword: "",
+                    newPassword: "",
+                    confirmPassword: "",
+                  });
+                }}
                 className="px-5 py-2.5 bg-slate-100 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-200 transition-colors"
               >
                 Cancel
               </button>
 
-              <button className="px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors">
+              <button
+                onClick={handleUpdatePassword}
+                className="px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+              >
                 Update Password
               </button>
             </div>

@@ -1,290 +1,527 @@
-import React, { useState } from "react";
+import axios from "axios";
+import { useState } from "react";
+import {
+  FiArrowLeft,
+  FiCheck,
+  FiEdit2,
+  FiFileText,
+  FiLock,
+  FiTrendingUp,
+  FiUploadCloud,
+} from "react-icons/fi";
+import { Document, Page, pdfjs } from "react-pdf";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import Navbar from "../../components/Navbar";
-import { FiArrowLeft, FiEdit2 } from "react-icons/fi";
+
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
+
+// Initialize PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
 
 const CandidateProfile = () => {
   const navigate = useNavigate();
-  const { full_name, email, linkedin_url, github_url, resume, phone } = useSelector((state) => state.candDash);
 
-  const [linkedinEdit, setLinkedinEdit] = useState(false);
-  const [githubEdit, setGithubEdit] = useState(false);
+  // 1. Fetching Data from Redux Slices
+  const token = useSelector((state) => state.auth.token);
+
+  // Construct loginPayload to match the structure expected by your backend
+  const authData = useSelector((state) => state.auth);
+  const loginPayload = {
+    email: authData.email?.trim(),
+    password: authData.password,
+    role: authData.role?.toLowerCase(),
+  };
+
+  // Fetch candidate details from candDash slice
+  const { full_name, candidate_id } = useSelector((state) => state.candDash);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedSkills, setExtractedSkills] = useState([]);
+
+  // Password State
   const [passwordEdit, setPasswordEdit] = useState(false);
-  const [resumeFile, setResumeFile] = useState(null);
-
-  const [linkedinValue, setLinkedinValue] = useState(linkedin_url || "");
-  const [githubValue, setGithubValue] = useState(github_url || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [errors, setErrors] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
 
-  const handleLinkedinUpdate = () => {
-    console.log("LinkedIn updated to:", linkedinValue);
-    setLinkedinEdit(false);
-  };
+  // File Upload State
+  const [resumeFile, setResumeFile] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null);
+  const [previewFileName, setPreviewFileName] = useState("");
+  const [previewFileSize, setPreviewFileSize] = useState("");
+  const [fileError, setFileError] = useState("");
+  const [isUploaded, setIsUploaded] = useState(false);
 
-  const handleGithubUpdate = () => {
-    console.log("GitHub updated to:", githubValue);
-    setGithubEdit(false);
-  };
-
-  const handlePasswordUpdate = () => {
-    if (newPassword !== confirmPassword) {
-      alert("Passwords do not match");
-      return;
+  const validatePasswordField = (field, value) => {
+    let error = "";
+    if (!value) {
+      error = "This field is required";
+    } else if (field === "newPassword") {
+      const regex =
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+      if (!regex.test(value)) {
+        error = "Min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 symbol";
+      } else if (value === currentPassword) {
+        error = "New password cannot be the same as current password";
+      }
+    } else if (field === "confirmPassword") {
+      if (value !== newPassword) error = "Passwords do not match";
     }
-    if (newPassword.length < 6) {
-      alert("Password must be at least 6 characters");
-      return;
-    }
-    setPasswordEdit(false);
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+
+    setErrors((prev) => ({ ...prev, [field]: error }));
+    return error === "";
   };
 
-  const handleResumeChange = (e) => {
+  const handlePasswordUpdate = async (e) => {
+    e.preventDefault();
+
+    const isCurrentValid = validatePasswordField(
+      "currentPassword",
+      currentPassword,
+    );
+    const isNewValid = validatePasswordField("newPassword", newPassword);
+    const isConfirmValid = validatePasswordField(
+      "confirmPassword",
+      confirmPassword,
+    );
+
+    if (isCurrentValid && isNewValid && isConfirmValid) {
+      try {
+        await axios.post(
+          `https://skillbridge-backend-3-vqsm.onrender.com/api/forgot-password/candidate/change-password`,
+          {
+            oldPassword: currentPassword,
+            newPassword: newPassword,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              user: JSON.stringify(loginPayload),
+            },
+          },
+        );
+
+        toast.success("Password updated successfully!");
+        setPasswordEdit(false);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setErrors({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+      } catch (error) {
+        const message =
+          error.response?.data?.message || "Failed to update password";
+        toast.error(message);
+      }
+    }
+  };
+
+  const handleResumeChange = async (e) => {
     const file = e.target.files[0];
+    setFileError("");
+
     if (file) {
-      setResumeFile(file);
+      // 1. Reset upload status for the new file
+      setIsUploaded(false);
+
+      setIsExtracting(true);
+      const toastId = toast.loading("Analyzing resume...");
+
+      try {
+        const skillsFormData = new FormData();
+        skillsFormData.append("resume", file);
+
+        const response = await axios.post(
+          "https://janmejay.pythonanywhere.com/extract-skills",
+          skillsFormData,
+        );
+
+        setExtractedSkills(response.data.skills || []);
+
+        // 2. Use CreateObjectURL for a more stable preview
+        setPreviewFile(URL.createObjectURL(file));
+        setResumeFile(file); // Keep the raw file for the actual upload later
+        setPreviewFileName(file.name);
+        setPreviewFileSize((file.size / (1024 * 1024)).toFixed(2));
+
+        toast.update(toastId, {
+          render: "Skills extracted!",
+          type: "success",
+          isLoading: false,
+          autoClose: 2000,
+        });
+      } catch (error) {
+        toast.update(toastId, {
+          render: "Extraction failed, but you can still preview.",
+          type: "error",
+          isLoading: false,
+          autoClose: 2000,
+        });
+        setPreviewFile(URL.createObjectURL(file));
+        setResumeFile(file);
+      } finally {
+        setIsExtracting(false);
+        e.target.value = null;
+      }
     }
   };
 
+  const handlePreviewCancel = () => {
+    setPreviewFile(null);
+    setPreviewFileName("");
+    setPreviewFileSize("");
+  };
+
+  const handlePreviewOk = async () => {
+    if (!resumeFile) return; // Use the raw file stored in state
+
+    const toastId = toast.loading("Updating resume on server...");
+
+    try {
+      const finalFormData = new FormData();
+      finalFormData.append("resume", resumeFile); // The actual File object
+      finalFormData.append("candidate_id", candidate_id);
+      finalFormData.append("skills", JSON.stringify(extractedSkills));
+
+      await axios.post(
+        "https://skillbridge-backend-3-vqsm.onrender.com/api/forgot-password/candidate/replace-resume",
+        finalFormData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`,
+            user: JSON.stringify(loginPayload),
+          },
+        },
+      );
+
+      setIsUploaded(true); // This hides the "Remove" button
+      setPreviewFile(null); // This closes the preview window
+
+      toast.update(toastId, {
+        render: "Profile updated successfully!",
+        type: "success",
+        isLoading: false,
+        autoClose: 3000,
+      });
+    } catch (error) {
+      // ... error handling
+    }
+  };
   return (
-    <div className="min-h-screen bg-[#f3f4f6]">
+    <div className="min-h-screen bg-[#F8FAFC] font-sans">
       <Navbar />
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-10 pb-12">
-        <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
-          
-          {/* Header */}
-          <div className="flex items-center gap-4 mb-8">
-            <button 
+
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-10">
+        {/* Header Section */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <button
               onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-slate-600 hover:text-slate-800 text-base font-semibold p-2 hover:bg-slate-100 rounded-lg transition-all duration-200"
+              className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-full transition-colors"
             >
-              <FiArrowLeft className="w-4 h-4" />
-              Back to Dashboard
+              <FiArrowLeft className="w-5 h-5" />
             </button>
-            <div className="flex-1" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Profile Settings
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Manage your resume and account security
+              </p>
+            </div>
           </div>
 
-          {/* Profile Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-3xl font-bold text-slate-900 mb-3">{full_name}</h1>
-            <p className="text-lg text-slate-600 mb-6">Profile Settings</p>
+          <div className="hidden sm:flex items-center gap-3 bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm">
+            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-semibold">
+                {full_name ? full_name.charAt(0).toUpperCase() : "C"}
+              </span>
+            </div>
+            <span className="text-sm font-medium text-gray-700 pr-2">
+              {full_name || "Candidate"}
+            </span>
           </div>
+        </div>
 
-          {/* Profile Sections - 4 Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            {/* LinkedIn Section */}
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 hover:shadow-sm transition-all duration-200">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-slate-900">LinkedIn Profile</h3>
-                {!linkedinEdit ? (
-                  <button
-                    onClick={() => setLinkedinEdit(true)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 text-white text-sm font-semibold rounded-md hover:bg-slate-900 transition-all duration-200"
-                  >
-                    <FiEdit2 className="w-3.5 h-3.5" />
-                    Update
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleLinkedinUpdate}
-                    className="px-4 py-1.5 bg-[#008bdc] text-white text-sm font-bold rounded-md hover:bg-blue-600 transition-all duration-200"
-                  >
-                    Save
-                  </button>
-                )}
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+          {/* Left Column: Resume Management */}
+          <div className="lg:col-span-7">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 h-full flex flex-col">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 bg-blue-50 rounded-xl">
+                  <FiFileText className="w-5 h-5 text-blue-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Resume Management
+                </h2>
               </div>
-              
-              {!linkedinEdit ? (
-                <div className="space-y-2">
-                  <p className="text-slate-500 text-xs">Current LinkedIn URL</p>
-                  <div className="p-3 bg-white rounded-md border border-slate-200 max-w-full">
-                    {linkedin_url ? (
-                      <a 
-                        href={linkedin_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-[#0a66c2] font-semibold hover:underline block text-sm break-all"
-                      >
-                        {linkedin_url}
-                      </a>
-                    ) : (
-                      <span className="text-slate-400 font-medium text-sm">No LinkedIn profile added</span>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <input
-                    type="url"
-                    value={linkedinValue}
-                    onChange={(e) => setLinkedinValue(e.target.value)}
-                    placeholder="https://linkedin.com/in/your-profile"
-                    className="w-full p-3 border border-slate-200 rounded-md focus:ring-2 focus:ring-[#008bdc]/50 focus:border-transparent transition-all duration-200 text-sm"
-                  />
-                  <button
-                    onClick={() => {
-                      setLinkedinEdit(false);
-                      setLinkedinValue(linkedin_url || "");
-                    }}
-                    className="px-4 py-1.5 bg-slate-200 text-slate-800 text-sm font-semibold rounded-md hover:bg-slate-300 transition-all duration-200"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-            </div>
 
-            {/* GitHub Section */}
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 hover:shadow-sm transition-all duration-200">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-slate-900">GitHub Profile</h3>
-                {!githubEdit ? (
-                  <button
-                    onClick={() => setGithubEdit(true)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 text-white text-sm font-semibold rounded-md hover:bg-slate-900 transition-all duration-200"
-                  >
-                    <FiEdit2 className="w-3.5 h-3.5" />
-                    Update
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleGithubUpdate}
-                    className="px-4 py-1.5 bg-[#008bdc] text-white text-sm font-bold rounded-md hover:bg-blue-600 transition-all duration-200"
-                  >
-                    Save
-                  </button>
-                )}
-              </div>
-              
-              {!githubEdit ? (
-                <div className="space-y-2">
-                  <p className="text-slate-500 text-xs">Current GitHub URL</p>
-                  <div className="p-3 bg-white rounded-md border border-slate-200 max-w-full">
-                    {github_url ? (
-                      <a 
-                        href={github_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-black font-semibold hover:underline block text-sm break-all"
-                      >
-                        {github_url}
-                      </a>
+              {!previewFile && !resumeFile && (
+                <div className="w-full">
+                  <label className="relative border-2 border-dashed border-gray-300 rounded-xl p-10 hover:bg-gray-50 transition-colors flex flex-col items-center justify-center text-center group cursor-pointer block w-full">
+                    {/* Inside the file upload label */}
+                    <input
+                      type="file"
+                      onChange={handleResumeChange}
+                      className="hidden"
+                      accept=".pdf"
+                      disabled={isExtracting} // Prevent double uploads
+                    />
+                    <div className="w-12 h-12 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <FiUploadCloud className="w-6 h-6" />
+                    </div>
+                    {isExtracting ? (
+                      <p className="text-blue-600 font-medium animate-pulse">
+                        Extracting Skills...
+                      </p>
                     ) : (
-                      <span className="text-slate-400 font-medium text-sm">No GitHub profile added</span>
+                      <p className="text-sm font-medium text-gray-700">
+                        Click or drag file to upload
+                      </p>
                     )}
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <input
-                    type="url"
-                    value={githubValue}
-                    onChange={(e) => setGithubValue(e.target.value)}
-                    placeholder="https://github.com/your-username"
-                    className="w-full p-3 border border-slate-200 rounded-md focus:ring-2 focus:ring-[#008bdc]/50 focus:border-transparent transition-all duration-200 text-sm"
-                  />
-                  <button
-                    onClick={() => {
-                      setGithubEdit(false);
-                      setGithubValue(github_url || "");
-                    }}
-                    className="px-4 py-1.5 bg-slate-200 text-slate-800 text-sm font-semibold rounded-md hover:bg-slate-300 transition-all duration-200"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-            </div>
 
-            {/* Resume Section */}
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 hover:shadow-sm transition-all duration-200">
-              <h3 className="text-lg font-bold text-slate-900 mb-4">Resume</h3>
-              <div className="space-y-3">
-                <p className="text-slate-500 text-xs">Current Resume</p>
-                {resume ? (
-                  <div className="p-3 bg-white rounded-md border border-slate-200 mb-4">
-                    <a 
-                      href={resume} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-slate-800 font-semibold hover:underline text-sm"
-                    >
-                      📄 {resume.split('/').pop() || 'Resume.pdf'}
-                    </a>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-white rounded-md border-2 border-dashed border-slate-300 text-center">
-                    <p className="text-slate-500 text-sm">No resume uploaded</p>
-                  </div>
-                )}
-                
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2 text-xs">Upload New Resume</label>
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleResumeChange}
-                    className="w-full px-3 py-3 border-2 border-dashed border-slate-300 rounded-md text-xs file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#008bdc] file:text-white hover:file:bg-blue-600 file:cursor-pointer hover:border-slate-400 transition-all duration-200"
-                  />
-                  {resumeFile && (
-                    <p className="text-xs text-green-600 mt-1">Selected: {resumeFile.name}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      PDF format, max size 10MB
+                    </p>
+                  </label>
+                  {fileError && (
+                    <p className="text-red-500 text-sm mt-3 text-center font-medium bg-red-50 py-2 rounded-lg">
+                      {fileError}
+                    </p>
                   )}
                 </div>
+              )}
+
+              {/* PDF Preview Area */}
+              {previewFile && (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                    Selected File Preview
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-stretch">
+                    <div className="w-20 h-28 overflow-hidden rounded-lg shadow-sm border border-gray-300 bg-white flex-shrink-0 relative pointer-events-none">
+                      <Document file={previewFile}>
+                        <Page
+                          pageNumber={1}
+                          width={80}
+                          renderTextLayer={false}
+                          renderAnnotationLayer={false}
+                        />
+                      </Document>
+                    </div>
+                    <div className="flex flex-col justify-between flex-1 w-full text-center sm:text-left">
+                      <div>
+                        <h4 className="font-medium text-gray-900 truncate max-w-[300px]">
+                          {previewFileName}
+                        </h4>
+                        <p className="text-sm text-gray-500 mt-0.5">
+                          PDF • {previewFileSize} MB
+                        </p>
+                      </div>
+                      <div className="flex gap-2 mt-4 sm:mt-0 justify-center sm:justify-start">
+                        <button
+                          onClick={handlePreviewCancel}
+                          className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handlePreviewOk}
+                          disabled={isExtracting} // Disable during API call
+                          className={`px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 ${
+                            isExtracting ? "opacity-50 cursor-not-allowed" : ""
+                          }`}
+                        >
+                          {isExtracting ? (
+                            "Processing..."
+                          ) : (
+                            <>
+                              <FiCheck className="w-4 h-4" /> Confirm Upload
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {resumeFile && !previewFile && (
+                <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                      <FiCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        Resume Uploaded
+                      </p>
+                      <p className="text-xs text-gray-600">{resumeFile.name}</p>
+                    </div>
+                  </div>
+
+                  {/* Only show Remove if the file hasn't been confirmed/uploaded yet */}
+                  {!isUploaded && (
+                    <button
+                      onClick={() => setResumeFile(null)}
+                      className="text-sm text-red-600 font-medium hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-auto pt-6">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl px-4 py-8 flex items-start gap-3">
+                  <div className="p-2 bg-white rounded-lg shadow-sm shrink-0 border border-blue-50">
+                    <FiTrendingUp className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900">
+                      New skills acquired?
+                    </h4>
+                    <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                      Keep your resume updated to get the most accurate and
+                      relevant job matches for your career growth.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Password Section */}
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 hover:shadow-sm transition-all duration-200">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-slate-900">Change Password</h3>
-                <button
-                  onClick={() => setPasswordEdit(!passwordEdit)}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 text-white text-sm font-semibold rounded-md hover:bg-slate-900 transition-all duration-200"
-                >
-                  <FiEdit2 className="w-3.5 h-3.5" />
-                  {passwordEdit ? "Cancel" : "Update"}
-                </button>
-              </div>
-              
-              {passwordEdit ? (
-                <form className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5 text-xs">New Password</label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full p-3 border border-slate-200 rounded-md focus:ring-2 focus:ring-[#008bdc]/50 focus:border-transparent text-sm"
-                      required
-                    />
+          {/* Right Column: Security / Password */}
+          <div className="lg:col-span-5">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 h-full flex flex-col">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-purple-50 rounded-xl">
+                    <FiLock className="w-5 h-5 text-purple-600" />
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1.5 text-xs">Confirm New Password</label>
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full p-3 border border-slate-200 rounded-md focus:ring-2 focus:ring-[#008bdc]/50 focus:border-transparent text-sm"
-                      required
-                    />
-                  </div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Security
+                  </h2>
+                </div>
+                {!passwordEdit && (
                   <button
-                    type="button"
-                    onClick={handlePasswordUpdate}
-                    className="w-full bg-[#008bdc] text-white py-2.5 rounded-md font-bold hover:bg-blue-600 transition-all duration-200 text-sm"
+                    onClick={() => setPasswordEdit(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
                   >
-                    Update Password
+                    <FiEdit2 className="w-4 h-4" /> Update Password
                   </button>
+                )}
+              </div>
+
+              {passwordEdit ? (
+                <form onSubmit={handlePasswordUpdate} className="space-y-4">
+                  {[
+                    {
+                      id: "currentPassword",
+                      label: "Current Password",
+                      val: currentPassword,
+                      setter: setCurrentPassword,
+                    },
+                    {
+                      id: "newPassword",
+                      label: "New Password",
+                      val: newPassword,
+                      setter: setNewPassword,
+                    },
+                    {
+                      id: "confirmPassword",
+                      label: "Confirm New Password",
+                      val: confirmPassword,
+                      setter: setConfirmPassword,
+                    },
+                  ].map((field) => (
+                    <div key={field.id}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        {field.label}
+                      </label>
+                      <input
+                        type="password"
+                        value={field.val}
+                        onChange={(e) => {
+                          field.setter(e.target.value);
+                          validatePasswordField(field.id, e.target.value);
+                        }}
+                        className={`w-full p-2.5 rounded-lg border ${
+                          errors[field.id]
+                            ? "border-red-500 focus:ring-red-200"
+                            : "border-gray-300 focus:ring-purple-100 focus:border-purple-500"
+                        } outline-none transition-all text-sm`}
+                      />
+                      {errors[field.id] && (
+                        <p className="text-red-500 text-xs mt-1.5">
+                          {errors[field.id]}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setPasswordEdit(false)}
+                      className="flex-1 py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 py-2.5 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm"
+                    >
+                      Update
+                    </button>
+                  </div>
                 </form>
               ) : (
-                <div className="p-4 bg-white rounded-md border border-slate-200 text-center">
-                  <p className="text-slate-500 text-xs">Click Update to change your password</p>
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <p className="flex items-start gap-2 text-sm text-gray-600 leading-relaxed">
+                    <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0"></span>
+                    <span>
+                      Ensure your account is using a strong password. Update it
+                      regularly to stay secure.
+                    </span>
+                  </p>
+                  <div className="mt-5 border-t border-gray-200 pt-5">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-4">
+                      Steps to update:
+                    </h4>
+                    <ul className="space-y-3.5">
+                      {[
+                        "Click Update Password.",
+                        "Enter current password.",
+                        "Set a strong new password.",
+                        "Confirm and Save.",
+                      ].map((step, index) => (
+                        <li
+                          key={index}
+                          className="flex items-start gap-3 text-sm text-gray-600"
+                        >
+                          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold shrink-0 mt-0.5">
+                            {index + 1}
+                          </span>
+                          <span className="leading-relaxed">{step}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               )}
             </div>

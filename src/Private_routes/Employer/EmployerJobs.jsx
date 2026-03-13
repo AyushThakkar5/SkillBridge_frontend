@@ -25,23 +25,213 @@ const PostJobModal = ({ isOpen, onClose, onPost }) => {
     salary_range: "",
   });
 
+  const [errors, setErrors] = useState({
+    title: "",
+    description: "",
+    required_skills: "",
+    location: "",
+    salary_range: "",
+  });
+
+  const validateField = (name, value) => {
+    let message = "";
+
+    if (name === "title") {
+      if (!value.trim()) {
+        message = "Job title is required";
+      } else if (value.trim().length < 3) {
+        message = "Job title must be at least 3 characters";
+      } else if (value.trim().length > 80) {
+        message = "Title cannot exceed 80 characters";
+      } else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim())) {
+        message =
+          "Each word must start with a capital letter (Example: Database Administrator)";
+      }
+    }
+
+    if (name === "description") {
+      if (!value.trim()) {
+        message = "Job description is required";
+      } else if (value.trim().length < 20) {
+        message = "Description must be at least 20 characters";
+      }
+    }
+
+    if (name === "required_skills") {
+      if (!value.trim()) {
+        message = "Please enter required skills";
+      }
+    }
+
+    if (name === "location") {
+      if (!value.trim()) {
+        message = "Location is required";
+      } else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim())) {
+        message =
+          "Each word must start with a capital letter (Example: New York)";
+      }
+    }
+
+    if (name === "salary_range") {
+      if (!value.trim()) {
+        message = "Salary is required";
+      } else if (formData.job_type === "Internship") {
+        if (!/^\d{1,3}(,\d{3})+$/.test(value)) {
+          message =
+            "Enter stipend with comma format (Example: 8,000 or 15,000)";
+        }
+      } else {
+        const hasHyphen = value.includes("-");
+        const hasLPALower = /lpa$/i.test(value) && !/LPA$/.test(value);
+        const spaceBeforeLPA = /\sLPA$/.test(value);
+        const spaceAroundHyphen = /\s-\s/.test(value);
+
+        // Case 1: LPA missing
+        if (!/lpa$/i.test(value)) {
+          message =
+            "Please enter salary with LPA (Example: 4 LPA or 4 - 5 LPA)";
+        }
+
+        // Case 2: LPA not capital
+        else if (hasLPALower) {
+          message = "LPA must be written in capital letters";
+        }
+
+        // Case 3: BOTH spacing mistakes
+        else if (hasHyphen && !spaceBeforeLPA && !spaceAroundHyphen) {
+          message =
+            "Enter salary with spaces around hyphen and before LPA like: 4 - 5 LPA";
+        }
+
+        // Case 4: Missing space before LPA
+        else if (!spaceBeforeLPA) {
+          message = "Please add space before LPA (Example: 5 LPA)";
+        }
+
+        // Case 5: Hyphen spacing issue
+        else if (hasHyphen && !spaceAroundHyphen) {
+          message = "Please add spaces around hyphen (Example: 4 - 5 LPA)";
+        }
+
+        // Case 6: Final format validation
+        else if (
+          !/^\d{1,2}(\.\d{1,2})?\sLPA$/.test(value) &&
+          !/^\d{1,2}(\.\d{1,2})?\s-\s\d{1,2}(\.\d{1,2})?\sLPA$/.test(value)
+        ) {
+          message = "Enter salary like: 4 LPA or 4 - 5 LPA";
+        }
+      }
+    }
+
+    setErrors((prev) => ({
+      ...prev,
+      [name]: message,
+    }));
+  };
+
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    let newErrors = {};
+
+    Object.keys(formData).forEach((field) => {
+      let value = formData[field];
+      let message = "";
+
+      if (field === "title") {
+        if (!value.trim()) message = "Job title is required";
+        else if (value.trim().length < 3)
+          message = "Job title must be at least 3 characters";
+        else if (value.trim().length > 80)
+          message = "Title cannot exceed 80 characters";
+        else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim())) {
+          message =
+            "Each word must start with a capital letter (Example: Database Administrator)";
+        }
+      }
+
+      if (field === "description") {
+        if (!value.trim()) message = "Job description is required";
+        else if (value.trim().length < 20)
+          message = "Description must be at least 20 characters";
+      }
+
+      if (field === "required_skills") {
+        if (!value.trim()) message = "Please enter required skills";
+      }
+
+      if (field === "location") {
+        if (!value.trim()) message = "Location is required";
+        else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim()))
+          message =
+            "Each word must start with a capital letter (Example: New York)";
+      }
+
+      if (field === "salary_range") {
+        if (!value.trim()) {
+          message = "Salary is required";
+        } else if (formData.job_type === "Internship") {
+          if (!/^\d{1,3}(,\d{3})+$/.test(value)) {
+            message =
+              "Enter salary with comma format (Example: 8,000 or 15,000)";
+          }
+        } else {
+          const hasHyphen = value.includes("-");
+          const hasLPALower = /lpa$/i.test(value) && !/LPA$/.test(value);
+          const spaceBeforeLPA = /\sLPA$/.test(value);
+          const spaceAroundHyphen = /\s-\s/.test(value);
+
+          // Case 1: LPA missing
+          if (!/lpa$/i.test(value)) {
+            message =
+              "Please enter salary with LPA (Example: 4 LPA or 4 - 5 LPA)";
+          }
+
+          // Case 2: LPA not capital
+          else if (hasLPALower) {
+            message = "LPA must be written in capital letters";
+          }
+
+          // Case 3: BOTH spacing mistakes
+          else if (hasHyphen && !spaceBeforeLPA && !spaceAroundHyphen) {
+            message =
+              "Enter salary with spaces around hyphen and before LPA like: 4 - 5 LPA";
+          }
+
+          // Case 4: Missing space before LPA
+          else if (!spaceBeforeLPA) {
+            message = "Please add space before LPA (Example: 5 LPA)";
+          }
+
+          // Case 5: Hyphen spacing issue
+          else if (hasHyphen && !spaceAroundHyphen) {
+            message = "Please add spaces around hyphen (Example: 4 - 5 LPA)";
+          }
+
+          // Case 6: Final format validation
+          else if (
+            !/^\d{1,2}(\.\d{1,2})?\sLPA$/.test(value) &&
+            !/^\d{1,2}(\.\d{1,2})?\s-\s\d{1,2}(\.\d{1,2})?\sLPA$/.test(value)
+          ) {
+            message = "Enter salary like: 4 LPA or 4 - 5 LPA";
+          }
+        }
+      }
+
+      newErrors[field] = message;
+    });
+
+    setErrors(newErrors);
+
+    const hasErrors = Object.values(newErrors).some((err) => err !== "");
+
+    if (hasErrors) return;
+
     onPost({
       ...formData,
       required_skills: formData.required_skills.split(",").map((s) => s.trim()),
-    });
-
-    setFormData({
-      title: "",
-      description: "",
-      required_skills: "",
-      job_type: "Full-time",
-      location: "",
-      salary_range: "",
     });
   };
 
@@ -51,6 +241,8 @@ const PostJobModal = ({ isOpen, onClose, onPost }) => {
     formData.required_skills &&
     formData.location &&
     formData.salary_range;
+
+  const hasErrors = Object.values(errors).some((err) => err !== "");
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-6">
@@ -76,20 +268,34 @@ const PostJobModal = ({ isOpen, onClose, onPost }) => {
               </label>
               <input
                 value={formData.title}
-                onChange={(e) =>
-                  setFormData({ ...formData, title: e.target.value })
-                }
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm"
+                placeholder="Your Job Title"
+                onChange={(e) => {
+                  setFormData({ ...formData, title: e.target.value });
+                  validateField("title", e.target.value);
+                }}
+                className={`w-full px-4 py-2 border rounded-lg text-sm ${
+                  errors.title ? "border-red-500" : "border-slate-200"
+                }`}
               />
+              {errors.title && (
+                <p className="text-red-500 text-xs mt-1">{errors.title}</p>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-bold mb-2">Job Type *</label>
               <select
                 value={formData.job_type}
-                onChange={(e) =>
-                  setFormData({ ...formData, job_type: e.target.value })
-                }
+                onChange={(e) => {
+                  const newType = e.target.value;
+
+                  setFormData({
+                    ...formData,
+                    job_type: newType,
+                  });
+
+                  validateField("salary_range", formData.salary_range);
+                }}
                 className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm"
               >
                 <option>Full-time</option>
@@ -105,13 +311,20 @@ const PostJobModal = ({ isOpen, onClose, onPost }) => {
               Description *
             </label>
             <textarea
+              placeholder="Your Job Description"
               rows={3}
               value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
-              className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm"
+              onChange={(e) => {
+                setFormData({ ...formData, description: e.target.value });
+                validateField("description", e.target.value);
+              }}
+              className={`w-full px-4 py-2 border rounded-lg text-sm ${
+                errors.description ? "border-red-500" : "border-slate-200"
+              }`}
             />
+            {errors.description && (
+              <p className="text-red-500 text-xs mt-1">{errors.description}</p>
+            )}
           </div>
 
           {/* Row 3 */}
@@ -122,25 +335,41 @@ const PostJobModal = ({ isOpen, onClose, onPost }) => {
               </label>
               <input
                 value={formData.required_skills}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    required_skills: e.target.value,
-                  })
-                }
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm"
+                placeholder="Required Skills for your job"
+                onChange={(e) => {
+                  setFormData({ ...formData, required_skills: e.target.value });
+                  validateField("required_skills", e.target.value);
+                }}
+                className={`w-full px-4 py-2 border rounded-lg text-sm ${
+                  errors.required_skills ? "border-red-500" : "border-slate-200"
+                }`}
               />
+              {errors.required_skills && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.required_skills}
+                </p>
+              )}
+              <p className="text-xs text-slate-400 mt-1">
+                Enter skills separated by commas (Example: React, Node, MongoDB)
+              </p>
             </div>
 
             <div>
               <label className="block text-sm font-bold mb-2">Location *</label>
               <input
                 value={formData.location}
-                onChange={(e) =>
-                  setFormData({ ...formData, location: e.target.value })
-                }
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm"
+                placeholder="Your Job Location"
+                onChange={(e) => {
+                  setFormData({ ...formData, location: e.target.value });
+                  validateField("location", e.target.value);
+                }}
+                className={`w-full px-4 py-2 border rounded-lg text-sm ${
+                  errors.location ? "border-red-500" : "border-slate-200"
+                }`}
               />
+              {errors.location && (
+                <p className="text-red-500 text-xs mt-1">{errors.location}</p>
+              )}
             </div>
 
             <div>
@@ -149,14 +378,24 @@ const PostJobModal = ({ isOpen, onClose, onPost }) => {
               </label>
               <input
                 value={formData.salary_range}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    salary_range: e.target.value,
-                  })
+                placeholder={
+                  formData.job_type === "Internship"
+                    ? "Example: 8,000"
+                    : "Example: 4 LPA OR 4 - 5 LPA"
                 }
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm"
+                onChange={(e) => {
+                  setFormData({ ...formData, salary_range: e.target.value });
+                  validateField("salary_range", e.target.value);
+                }}
+                className={`w-full px-4 py-2 border rounded-lg text-sm ${
+                  errors.salary_range ? "border-red-500" : "border-slate-200"
+                }`}
               />
+              {errors.salary_range && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.salary_range}
+                </p>
+              )}
             </div>
           </div>
 
@@ -172,7 +411,7 @@ const PostJobModal = ({ isOpen, onClose, onPost }) => {
 
             <button
               type="submit"
-              disabled={!isFormComplete}
+              disabled={!isFormComplete || hasErrors}
               className={`px-6 py-2 rounded-lg text-sm font-bold text-white transition ${
                 isFormComplete
                   ? "bg-[#0a66c2] hover:bg-[#084d91]"
@@ -212,11 +451,207 @@ const EditJobModal = ({ job, isOpen, onClose, onUpdate, loading }) => {
       });
     }
   }, [job]);
+  const [errors, setErrors] = useState({
+    title: "",
+    description: "",
+    required_skills: "",
+    location: "",
+    salary_range: "",
+  });
+  const validateField = (name, value) => {
+    let message = "";
+
+    if (name === "title") {
+      if (!value.trim()) {
+        message = "Job title is required";
+      } else if (value.trim().length < 3) {
+        message = "Job title must be at least 3 characters";
+      } else if (value.trim().length > 80) {
+        message = "Title cannot exceed 80 characters";
+      } else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim())) {
+        message =
+          "Each word must start with a capital letter (Example: Database Administrator)";
+      }
+    }
+
+    if (name === "description") {
+      if (!value.trim()) {
+        message = "Job description is required";
+      } else if (value.trim().length < 20) {
+        message = "Description must be at least 20 characters";
+      }
+    }
+
+    if (name === "required_skills") {
+      if (!value.trim()) {
+        message = "Please enter required skills";
+      }
+    }
+
+    if (name === "location") {
+      if (!value.trim()) {
+        message = "Location is required";
+      } else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim())) {
+        message =
+          "Each word must start with a capital letter (Example: New York)";
+      }
+    }
+
+    if (name === "salary_range") {
+      if (!value.trim()) {
+        message = "Salary is required";
+      } else if (formData.job_type === "Internship") {
+        if (!/^\d{1,3}(,\d{3})+$/.test(value)) {
+          message =
+            "Enter stipend with comma format (Example: 8,000 or 15,000)";
+        }
+      } else {
+        const hasHyphen = value.includes("-");
+        const hasLPALower = /lpa$/i.test(value) && !/LPA$/.test(value);
+        const spaceBeforeLPA = /\sLPA$/.test(value);
+        const spaceAroundHyphen = /\s-\s/.test(value);
+
+        // Case 1: LPA missing
+        if (!/lpa$/i.test(value)) {
+          message =
+            "Please enter salary with LPA (Example: 4 LPA or 4 - 5 LPA)";
+        }
+
+        // Case 2: LPA not capital
+        else if (hasLPALower) {
+          message = "LPA must be written in capital letters";
+        }
+
+        // Case 3: BOTH spacing mistakes
+        else if (hasHyphen && !spaceBeforeLPA && !spaceAroundHyphen) {
+          message =
+            "Enter salary with spaces around hyphen and before LPA like: 4 - 5 LPA";
+        }
+
+        // Case 4: Missing space before LPA
+        else if (!spaceBeforeLPA) {
+          message = "Please add space before LPA (Example: 5 LPA)";
+        }
+
+        // Case 5: Hyphen spacing issue
+        else if (hasHyphen && !spaceAroundHyphen) {
+          message = "Please add spaces around hyphen (Example: 4 - 5 LPA)";
+        }
+
+        // Case 6: Final format validation
+        else if (
+          !/^\d{1,2}(\.\d{1,2})?\sLPA$/.test(value) &&
+          !/^\d{1,2}(\.\d{1,2})?\s-\s\d{1,2}(\.\d{1,2})?\sLPA$/.test(value)
+        ) {
+          message = "Enter salary like: 4 LPA or 4 - 5 LPA";
+        }
+      }
+    }
+
+    setErrors((prev) => ({
+      ...prev,
+      [name]: message,
+    }));
+  };
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    let newErrors = {};
+
+    Object.keys(formData).forEach((field) => {
+      let value = formData[field];
+      let message = "";
+
+      if (field === "title") {
+        if (!value.trim()) message = "Job title is required";
+        else if (value.trim().length < 3)
+          message = "Job title must be at least 3 characters";
+        else if (value.trim().length > 80)
+          message = "Title cannot exceed 80 characters";
+        else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim())) {
+          message =
+            "Each word must start with a capital letter (Example: Database Administrator)";
+        }
+      }
+
+      if (field === "description") {
+        if (!value.trim()) message = "Job description is required";
+        else if (value.trim().length < 20)
+          message = "Description must be at least 20 characters";
+      }
+
+      if (field === "required_skills") {
+        if (!value.trim()) message = "Please enter required skills";
+      }
+
+      if (field === "location") {
+        if (!value.trim()) message = "Location is required";
+        else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim()))
+          message =
+            "Each word must start with a capital letter (Example: New York)";
+      }
+
+      if (field === "salary_range") {
+        if (!value.trim()) message = "Salary is required";
+        else if (formData.job_type === "Internship") {
+          if (!/^\d{1,3}(,\d{3})+$/.test(value)) {
+            message =
+              "Enter stipend with comma format (Example: 8,000 or 15,000)";
+          }
+        } else {
+          const hasHyphen = value.includes("-");
+          const hasLPALower = /lpa$/i.test(value) && !/LPA$/.test(value);
+          const spaceBeforeLPA = /\sLPA$/.test(value);
+          const spaceAroundHyphen = /\s-\s/.test(value);
+
+          // Case 1: LPA missing
+          if (!/lpa$/i.test(value)) {
+            message =
+              "Please enter salary with LPA (Example: 4 LPA or 4 - 5 LPA)";
+          }
+
+          // Case 2: LPA not capital
+          else if (hasLPALower) {
+            message = "LPA must be written in capital letters";
+          }
+
+          // Case 3: BOTH spacing mistakes
+          else if (hasHyphen && !spaceBeforeLPA && !spaceAroundHyphen) {
+            message =
+              "Enter salary with spaces around hyphen and before LPA like: 4 - 5 LPA";
+          }
+
+          // Case 4: Missing space before LPA
+          else if (!spaceBeforeLPA) {
+            message = "Please add space before LPA (Example: 5 LPA)";
+          }
+
+          // Case 5: Hyphen spacing issue
+          else if (hasHyphen && !spaceAroundHyphen) {
+            message = "Please add spaces around hyphen (Example: 4 - 5 LPA)";
+          }
+
+          // Case 6: Final format validation
+          else if (
+            !/^\d{1,2}(\.\d{1,2})?\sLPA$/.test(value) &&
+            !/^\d{1,2}(\.\d{1,2})?\s-\s\d{1,2}(\.\d{1,2})?\sLPA$/.test(value)
+          ) {
+            message = "Enter salary like: 4 LPA or 4 - 5 LPA";
+          }
+        }
+      }
+
+      newErrors[field] = message;
+    });
+
+    setErrors(newErrors);
+
+    const hasErrors = Object.values(newErrors).some((err) => err !== "");
+
+    if (hasErrors) return;
 
     onUpdate({
       ...formData,
@@ -225,56 +660,174 @@ const EditJobModal = ({ job, isOpen, onClose, onUpdate, loading }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white p-8 rounded-xl w-[520px]">
-        <h2 className="text-xl font-bold mb-6">Edit Job</h2>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+      <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl p-8">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-slate-800">Edit Job</h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            value={formData.title}
-            onChange={(e) =>
-              setFormData({ ...formData, title: e.target.value })
-            }
-            className="w-full border p-2 rounded"
-          />
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-slate-100 rounded-lg transition"
+          >
+            <FiX className="text-xl text-slate-500" />
+          </button>
+        </div>
 
-          <textarea
-            value={formData.description}
-            onChange={(e) =>
-              setFormData({ ...formData, description: e.target.value })
-            }
-            className="w-full border p-2 rounded"
-          />
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Row 1 */}
+          <div className="grid md:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-sm font-bold mb-2">
+                Job Title *
+              </label>
 
-          <input
-            value={formData.required_skills}
-            onChange={(e) =>
-              setFormData({ ...formData, required_skills: e.target.value })
-            }
-            className="w-full border p-2 rounded"
-          />
+              <input
+                value={formData.title}
+                onChange={(e) => {
+                  setFormData({ ...formData, title: e.target.value });
+                  validateField("title", e.target.value);
+                }}
+                className={`w-full px-4 py-2 border rounded-lg text-sm ${
+                  errors.title ? "border-red-500" : "border-slate-200"
+                }`}
+              />
 
-          <input
-            value={formData.location}
-            onChange={(e) =>
-              setFormData({ ...formData, location: e.target.value })
-            }
-            className="w-full border p-2 rounded"
-          />
+              {errors.title && (
+                <p className="text-red-500 text-xs mt-1">{errors.title}</p>
+              )}
+            </div>
 
-          <input
-            value={formData.salary_range}
-            onChange={(e) =>
-              setFormData({ ...formData, salary_range: e.target.value })
-            }
-            className="w-full border p-2 rounded"
-          />
+            <div>
+              <label className="block text-sm font-bold mb-2">Job Type *</label>
 
-          <div className="flex justify-end gap-3 pt-4">
+              <select
+                value={formData.job_type}
+                onChange={(e) => {
+                  setFormData({ ...formData, job_type: e.target.value });
+                  validateField("salary_range", formData.salary_range);
+                }}
+                className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm"
+              >
+                <option>Full-time</option>
+                <option>Part-time</option>
+                <option>Internship</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-bold mb-2">
+              Description *
+            </label>
+
+            <textarea
+              rows={3}
+              value={formData.description}
+              onChange={(e) => {
+                setFormData({ ...formData, description: e.target.value });
+                validateField("description", e.target.value);
+              }}
+              className={`w-full px-4 py-2 border rounded-lg text-sm ${
+                errors.description ? "border-red-500" : "border-slate-200"
+              }`}
+            />
+
+            {errors.description && (
+              <p className="text-red-500 text-xs mt-1">{errors.description}</p>
+            )}
+          </div>
+
+          {/* Row 3 */}
+          <div className="grid md:grid-cols-3 gap-5">
+            <div>
+              <label className="block text-sm font-bold mb-2">
+                Required Skills *
+              </label>
+
+              <input
+                value={formData.required_skills}
+                onChange={(e) => {
+                  setFormData({
+                    ...formData,
+                    required_skills: e.target.value,
+                  });
+                  validateField("required_skills", e.target.value);
+                }}
+                className={`w-full px-4 py-2 border rounded-lg text-sm ${
+                  errors.required_skills ? "border-red-500" : "border-slate-200"
+                }`}
+              />
+
+              {errors.required_skills && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.required_skills}
+                </p>
+              )}
+
+              <p className="text-xs text-slate-400 mt-1">
+                Enter skills separated by commas (Example: React, Node, MongoDB)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold mb-2">Location *</label>
+
+              <input
+                value={formData.location}
+                onChange={(e) => {
+                  setFormData({ ...formData, location: e.target.value });
+                  validateField("location", e.target.value);
+                }}
+                className={`w-full px-4 py-2 border rounded-lg text-sm ${
+                  errors.location ? "border-red-500" : "border-slate-200"
+                }`}
+              />
+
+              {errors.location && (
+                <p className="text-red-500 text-xs mt-1">{errors.location}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold mb-2">
+                Salary Range *
+              </label>
+
+              <input
+                value={formData.salary_range}
+                placeholder={
+                  formData.job_type === "Internship"
+                    ? "Example: 8,000"
+                    : "Example: 4 LPA or 4 - 5 LPA"
+                }
+                onChange={(e) => {
+                  setFormData({
+                    ...formData,
+                    salary_range: e.target.value,
+                  });
+                  validateField("salary_range", e.target.value);
+                }}
+                className={`w-full px-4 py-2 border rounded-lg text-sm ${
+                  errors.salary_range ? "border-red-500" : "border-slate-200"
+                }`}
+              />
+
+              {errors.salary_range && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.salary_range}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex justify-end gap-4 pt-6">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border rounded"
+              className="px-6 py-2 border border-slate-300 rounded-lg text-sm font-bold hover:bg-slate-50"
             >
               Cancel
             </button>
@@ -282,9 +835,9 @@ const EditJobModal = ({ job, isOpen, onClose, onUpdate, loading }) => {
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded"
+              className="px-6 py-2 rounded-lg text-sm font-bold text-white bg-[#0a66c2] hover:bg-[#084d91] transition"
             >
-              Save
+              Save Changes
             </button>
           </div>
         </form>
