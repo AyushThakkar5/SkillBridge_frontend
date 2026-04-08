@@ -4,6 +4,8 @@ import {
   FiArrowLeft,
   FiCheck,
   FiEdit2,
+  FiEye,
+  FiEyeOff,
   FiFileText,
   FiLock,
   FiTrendingUp,
@@ -61,6 +63,11 @@ const CandidateProfile = () => {
   const [previewFileSize, setPreviewFileSize] = useState("");
   const [fileError, setFileError] = useState("");
   const [isUploaded, setIsUploaded] = useState(false);
+  const [showPassword, setShowPassword] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false,
+  });
 
   const validatePasswordField = (field, value) => {
     let error = "";
@@ -71,8 +78,6 @@ const CandidateProfile = () => {
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
       if (!regex.test(value)) {
         error = "Min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 symbol";
-      } else if (value === currentPassword) {
-        error = "New password cannot be the same as current password";
       }
     } else if (field === "confirmPassword") {
       if (value !== newPassword) error = "Passwords do not match";
@@ -134,11 +139,8 @@ const CandidateProfile = () => {
     setFileError("");
 
     if (file) {
-      // 1. Reset upload status for the new file
       setIsUploaded(false);
-
       setIsExtracting(true);
-      const toastId = toast.loading("Analyzing resume...");
 
       try {
         const skillsFormData = new FormData();
@@ -151,27 +153,25 @@ const CandidateProfile = () => {
 
         setExtractedSkills(response.data.skills || []);
 
-        // 2. Use CreateObjectURL for a more stable preview
+        // Preview setup
         setPreviewFile(URL.createObjectURL(file));
-        setResumeFile(file); // Keep the raw file for the actual upload later
+        setResumeFile(file);
         setPreviewFileName(file.name);
         setPreviewFileSize((file.size / (1024 * 1024)).toFixed(2));
 
-        toast.update(toastId, {
-          render: "Skills extracted!",
-          type: "success",
-          isLoading: false,
-          autoClose: 2000,
-        });
+        //  Single success toast
+        toast.success("Resume analyzed successfully!");
       } catch (error) {
-        toast.update(toastId, {
-          render: "Extraction failed, but you can still preview.",
-          type: "error",
-          isLoading: false,
-          autoClose: 2000,
-        });
+        console.error(error);
+
+        // Even if extraction fails, allow preview
         setPreviewFile(URL.createObjectURL(file));
         setResumeFile(file);
+
+        // Single error toast
+        toast.error(
+          "Skill extraction failed. You can still preview the resume.",
+        );
       } finally {
         setIsExtracting(false);
         e.target.value = null;
@@ -186,16 +186,16 @@ const CandidateProfile = () => {
   };
 
   const handlePreviewOk = async () => {
-    if (!resumeFile) return; // Use the raw file stored in state
-
-    const toastId = toast.loading("Updating resume on server...");
+    if (!resumeFile) return;
 
     try {
+      // -------- 1. Prepare FormData --------
       const finalFormData = new FormData();
-      finalFormData.append("resume", resumeFile); // The actual File object
+      finalFormData.append("resume", resumeFile);
       finalFormData.append("candidate_id", candidate_id);
       finalFormData.append("skills", JSON.stringify(extractedSkills));
 
+      // -------- 2. First API (Update Resume) --------
       await axios.post(
         "https://skillbridge-backend-3-vqsm.onrender.com/api/forgot-password/candidate/replace-resume",
         finalFormData,
@@ -208,19 +208,32 @@ const CandidateProfile = () => {
         },
       );
 
-      setIsUploaded(true); // This hides the "Remove" button
-      setPreviewFile(null); // This closes the preview window
+      // -------- 3. Second API (Rematch Candidate) --------
+      await axios.post(
+        "https://skillbridge-backend-3-vqsm.onrender.com/api/match/rematch-candidate",
+        { candidate_id }, // FIX: send as object, not raw value
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            user: JSON.stringify(loginPayload),
+          },
+        },
+      );
 
-      toast.update(toastId, {
-        render: "Profile updated successfully!",
-        type: "success",
-        isLoading: false,
-        autoClose: 3000,
-      });
+      // -------- 4. Update UI --------
+      setIsUploaded(true);
+      setPreviewFile(null);
+
+      // -------- 5. Single Success Toast --------
+      toast.success("Resume updated and rematched successfully!");
     } catch (error) {
-      // ... error handling
+      console.error(error);
+
+      // -------- 6. Single Error Toast --------
+      toast.error("Failed to update resume. Please try again.");
     }
   };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans">
       <Navbar />
@@ -454,19 +467,35 @@ const CandidateProfile = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">
                         {field.label}
                       </label>
-                      <input
-                        type="password"
-                        value={field.val}
-                        onChange={(e) => {
-                          field.setter(e.target.value);
-                          validatePasswordField(field.id, e.target.value);
-                        }}
-                        className={`w-full p-2.5 rounded-lg border ${
-                          errors[field.id]
-                            ? "border-red-500 focus:ring-red-200"
-                            : "border-gray-300 focus:ring-purple-100 focus:border-purple-500"
-                        } outline-none transition-all text-sm`}
-                      />
+                      <div className="relative">
+                        <input
+                          type={showPassword[field.id] ? "text" : "password"}
+                          value={field.val}
+                          onChange={(e) => {
+                            field.setter(e.target.value);
+                            validatePasswordField(field.id, e.target.value);
+                          }}
+                          className={`w-full p-2.5 pr-10 rounded-lg border ${
+                            errors[field.id]
+                              ? "border-red-500 focus:ring-red-200"
+                              : "border-gray-300 focus:ring-purple-100 focus:border-purple-500"
+                          } outline-none transition-all text-sm`}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowPassword((prev) => ({
+                              ...prev,
+                              [field.id]: !prev[field.id],
+                            }))
+                          }
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                        >
+                          {showPassword[field.id] ? <FiEyeOff /> : <FiEye />}
+                        </button>
+                      </div>
+
                       {errors[field.id] && (
                         <p className="text-red-500 text-xs mt-1.5">
                           {errors[field.id]}

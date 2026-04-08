@@ -6,6 +6,8 @@ import {
   FiBriefcase,
   FiCheckCircle,
   FiClock,
+  FiEye,
+  FiEyeOff,
   FiFileText,
   FiLinkedin,
   FiLock,
@@ -36,6 +38,11 @@ const EmployerDashboard = () => {
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
+  });
+  const [showPassword, setShowPassword] = useState({
+    current: false,
+    new: false,
+    confirm: false,
   });
 
   const navigate = useNavigate();
@@ -87,8 +94,6 @@ const EmployerDashboard = () => {
     if (name === "newPassword") {
       if (!value) {
         message = "New password is required";
-      } else if (value === currentPassword) {
-        message = "New password cannot be the same as current password";
       } else if (!passwordRegex.test(value)) {
         message =
           "Password must be 8+ chars with uppercase, lowercase, number & symbol";
@@ -122,9 +127,6 @@ const EmployerDashboard = () => {
 
     if (!newPassword) {
       newErrors.newPassword = "New password is required";
-    } else if (newPassword === currentPassword) {
-      newErrors.newPassword =
-        "New password cannot be the same as current password";
     } else if (!passwordRegex.test(newPassword)) {
       newErrors.newPassword =
         "Password must be 8+ chars with uppercase, lowercase, number & symbol";
@@ -310,7 +312,6 @@ const EmployerDashboard = () => {
           </div>
 
           {/* Manage Jobs Action Card */}
-          {/* Manage Jobs Action Card */}
           <div
             onClick={() => navigate("/employer-jobs")}
             className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow relative"
@@ -348,21 +349,43 @@ const EmployerDashboard = () => {
             </h3>
 
             <div className="space-y-4">
+              {/* Current Password */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   Current Password
                 </label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => {
-                    setCurrentPassword(e.target.value);
-                    validateField("currentPassword", e.target.value);
-                  }}
-                  className={`w-full p-3.5 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent outline-none transition-all
+
+                <div className="relative">
+                  <input
+                    type={showPassword.current ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => {
+                      setCurrentPassword(e.target.value);
+                      validateField("currentPassword", e.target.value);
+                    }}
+                    className={`w-full p-3.5 pr-12 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent outline-none transition-all
 ${errors.currentPassword ? "border-red-500" : "border-slate-200"}
 `}
-                />
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowPassword((prev) => ({
+                        ...prev,
+                        current: !prev.current,
+                      }))
+                    }
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                  >
+                    {showPassword.current ? (
+                      <FiEyeOff size={18} />
+                    ) : (
+                      <FiEye size={18} />
+                    )}
+                  </button>
+                </div>
+
                 {errors.currentPassword && (
                   <p className="text-red-500 text-xs mt-1">
                     {errors.currentPassword}
@@ -370,24 +393,46 @@ ${errors.currentPassword ? "border-red-500" : "border-slate-200"}
                 )}
               </div>
 
+              {/* New Password */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   New Password
                 </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => {
-                    setNewPassword(e.target.value);
-                    validateField("newPassword", e.target.value);
-                    if (confirmPassword) {
-                      validateField("confirmPassword", confirmPassword);
-                    }
-                  }}
-                  className={`w-full p-3.5 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent outline-none transition-all
+
+                <div className="relative">
+                  <input
+                    type={showPassword.new ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      validateField("newPassword", e.target.value);
+                      if (confirmPassword) {
+                        validateField("confirmPassword", confirmPassword);
+                      }
+                    }}
+                    className={`w-full p-3.5 pr-12 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent outline-none transition-all
 ${errors.newPassword ? "border-red-500" : "border-slate-200"}
 `}
-                />
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowPassword((prev) => ({
+                        ...prev,
+                        new: !prev.new,
+                      }))
+                    }
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                  >
+                    {showPassword.new ? (
+                      <FiEyeOff size={18} />
+                    ) : (
+                      <FiEye size={18} />
+                    )}
+                  </button>
+                </div>
+
                 {errors.newPassword && (
                   <p className="text-red-500 text-xs mt-1">
                     {errors.newPassword}
@@ -395,21 +440,43 @@ ${errors.newPassword ? "border-red-500" : "border-slate-200"}
                 )}
               </div>
 
+              {/* Confirm Password */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   Confirm Password
                 </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    validateField("confirmPassword", e.target.value);
-                  }}
-                  className={`w-full p-3.5 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent outline-none transition-all
+
+                <div className="relative">
+                  <input
+                    type={showPassword.confirm ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      validateField("confirmPassword", e.target.value);
+                    }}
+                    className={`w-full p-3.5 pr-12 text-sm border rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-transparent outline-none transition-all
 ${errors.confirmPassword ? "border-red-500" : "border-slate-200"}
 `}
-                />
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowPassword((prev) => ({
+                        ...prev,
+                        confirm: !prev.confirm,
+                      }))
+                    }
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                  >
+                    {showPassword.confirm ? (
+                      <FiEyeOff size={18} />
+                    ) : (
+                      <FiEye size={18} />
+                    )}
+                  </button>
+                </div>
+
                 {errors.confirmPassword && (
                   <p className="text-red-500 text-xs mt-1">
                     {errors.confirmPassword}

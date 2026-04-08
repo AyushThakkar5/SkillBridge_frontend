@@ -20,6 +20,11 @@ import ViewMatchedDetails from "./Private_routes/Candidate/ViewMatchedDetails";
 import ViewResponse from "./Private_routes/Candidate/ViewResponse";
 import ViewResponseDetails from "./Private_routes/Candidate/ViewResponseDetails";
 
+import UpdatedDetails from "./Private_routes/Employer/UpdatedDetails";
+import EmployerApplicationDetail from "./Private_routes/Employer/EmployerApplicationDetail";
+import EmployerApplications from "./Private_routes/Employer/EmployerApplications";
+import EmployerDashboard from "./Private_routes/Employer/EmployerDashboard";
+import EmployerJobs from "./Private_routes/Employer/EmployerJobs";
 import EmployerProtected from "./Private_routes/EmployerProtected";
 import ForgotPasswordMain from "./Private_routes/ForgotPasswordMain";
 import ForgotPasswordOTP from "./Private_routes/ForgotPasswordOTP";
@@ -29,10 +34,6 @@ import RegisterProtected from "./Private_routes/RegisterProtected";
 import Registration from "./Private_routes/Registration";
 import VerifyEmail from "./Private_routes/VerifyEmail";
 import VerifyProtected from "./Private_routes/VerifyProtected";
-import EmployerDashboard from "./Private_routes/Employer/EmployerDashboard";
-import EmployerJobs from "./Private_routes/Employer/EmployerJobs";
-import EmployerApplications from "./Private_routes/Employer/EmployerApplications";
-import EmployerApplicationDetail from "./Private_routes/Employer/EmployerApplicationDetail";
 
 function App() {
   return (
@@ -125,6 +126,14 @@ function App() {
               <ProtectedRoute>
                 <ViewResponse />
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/updated-details/:id"
+            element={
+              <EmployerProtected>
+                <UpdatedDetails />
+              </EmployerProtected>
             }
           />
           <Route

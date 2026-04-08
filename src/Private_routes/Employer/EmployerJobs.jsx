@@ -33,6 +33,31 @@ const PostJobModal = ({ isOpen, onClose, onPost }) => {
     salary_range: "",
   });
 
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      description: "",
+      required_skills: "",
+      job_type: "Full-time",
+      location: "",
+      salary_range: "",
+    });
+
+    setErrors({
+      title: "",
+      description: "",
+      required_skills: "",
+      location: "",
+      salary_range: "",
+    });
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      resetForm();
+    }
+  }, [isOpen]);
+
   const validateField = (name, value) => {
     let message = "";
 
@@ -43,7 +68,7 @@ const PostJobModal = ({ isOpen, onClose, onPost }) => {
         message = "Job title must be at least 3 characters";
       } else if (value.trim().length > 80) {
         message = "Title cannot exceed 80 characters";
-      } else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim())) {
+      } else if (!/^[A-Z][a-zA-Z]*(\s[A-Z][a-zA-Z]*)*$/.test(value.trim())) {
         message =
           "Each word must start with a capital letter (Example: Database Administrator)";
       }
@@ -66,7 +91,9 @@ const PostJobModal = ({ isOpen, onClose, onPost }) => {
     if (name === "location") {
       if (!value.trim()) {
         message = "Location is required";
-      } else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim())) {
+      } else if (
+        !/^[A-Z][a-zA-Z]*(?:[,\s]\s?[A-Z][a-zA-Z]*)*$/.test(value.trim())
+      ) {
         message =
           "Each word must start with a capital letter (Example: New York)";
       }
@@ -146,7 +173,7 @@ const PostJobModal = ({ isOpen, onClose, onPost }) => {
           message = "Job title must be at least 3 characters";
         else if (value.trim().length > 80)
           message = "Title cannot exceed 80 characters";
-        else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim())) {
+        else if (!/^[A-Z][a-zA-Z]*(\s[A-Z][a-zA-Z]*)*$/.test(value.trim())) {
           message =
             "Each word must start with a capital letter (Example: Database Administrator)";
         }
@@ -164,7 +191,9 @@ const PostJobModal = ({ isOpen, onClose, onPost }) => {
 
       if (field === "location") {
         if (!value.trim()) message = "Location is required";
-        else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim()))
+        else if (
+          !/^[A-Z][a-zA-Z]*(?:[,\s]\s?[A-Z][a-zA-Z]*)*$/.test(value.trim())
+        )
           message =
             "Each word must start with a capital letter (Example: New York)";
       }
@@ -233,6 +262,8 @@ const PostJobModal = ({ isOpen, onClose, onPost }) => {
       ...formData,
       required_skills: formData.required_skills.split(",").map((s) => s.trim()),
     });
+
+    resetForm();
   };
 
   const isFormComplete =
@@ -468,7 +499,7 @@ const EditJobModal = ({ job, isOpen, onClose, onUpdate, loading }) => {
         message = "Job title must be at least 3 characters";
       } else if (value.trim().length > 80) {
         message = "Title cannot exceed 80 characters";
-      } else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim())) {
+      } else if (!/^[A-Z][a-zA-Z]*(\s[A-Z][a-zA-Z]*)*$/.test(value.trim())) {
         message =
           "Each word must start with a capital letter (Example: Database Administrator)";
       }
@@ -491,7 +522,9 @@ const EditJobModal = ({ job, isOpen, onClose, onUpdate, loading }) => {
     if (name === "location") {
       if (!value.trim()) {
         message = "Location is required";
-      } else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim())) {
+      } else if (
+        !/^[A-Z][a-zA-Z]*(?:[,\s]\s?[A-Z][a-zA-Z]*)*$/.test(value.trim())
+      ) {
         message =
           "Each word must start with a capital letter (Example: New York)";
       }
@@ -571,7 +604,7 @@ const EditJobModal = ({ job, isOpen, onClose, onUpdate, loading }) => {
           message = "Job title must be at least 3 characters";
         else if (value.trim().length > 80)
           message = "Title cannot exceed 80 characters";
-        else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim())) {
+        else if (!/^[A-Z][a-zA-Z]*(\s[A-Z][a-zA-Z]*)*$/.test(value.trim())) {
           message =
             "Each word must start with a capital letter (Example: Database Administrator)";
         }
@@ -589,7 +622,9 @@ const EditJobModal = ({ job, isOpen, onClose, onUpdate, loading }) => {
 
       if (field === "location") {
         if (!value.trim()) message = "Location is required";
-        else if (!/^[A-Z][a-z]+(\s[A-Z][a-z]+)*$/.test(value.trim()))
+        else if (
+          !/^[A-Z][a-zA-Z]*(?:[,\s]\s?[A-Z][a-zA-Z]*)*$/.test(value.trim())
+        )
           message =
             "Each word must start with a capital letter (Example: New York)";
       }
